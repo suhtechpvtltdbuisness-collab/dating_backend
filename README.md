@@ -66,7 +66,7 @@ This generates OTP and prints it in server console for now.
 ```json
 {
   "number": "+919999999999",
-  "otp": "123456"
+  "otp": "1234"
 }
 ```
 

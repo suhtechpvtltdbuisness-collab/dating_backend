@@ -143,8 +143,8 @@ export function validateOtpInput(
     );
   }
 
-  if (!otp || !/^\d{4,6}$/.test(otp)) {
-    throw new AuthError("Invalid otp", 400);
+  if (!otp || !/^\d{4}$/.test(otp)) {
+    throw new AuthError("Invalid otp. It must be exactly 4 digits", 400);
   }
 
   return { number: normalizedNumber, otp };
