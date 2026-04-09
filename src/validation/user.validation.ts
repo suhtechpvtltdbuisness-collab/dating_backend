@@ -24,6 +24,13 @@ export interface LoginInput {
   password: string;
 }
 
+export interface PhoneOtpLoginInput {
+  phoneNumber: string;
+  otp: string;
+}
+
+export type LoginRequestInput = LoginInput | PhoneOtpLoginInput;
+
 export function validateRegisterInput(
   payload: RegisterInput,
 ): RegisterInput & { phoneNumber: string; email: string } {
@@ -131,6 +138,34 @@ export function validateLoginInput(payload: LoginInput): LoginInput {
   return { email, password };
 }
 
+export function validateLoginRequestInput(
+  payload: Partial<LoginInput & PhoneOtpLoginInput>,
+): LoginRequestInput {
+  const hasEmailFields = Boolean(payload.email || payload.password);
+  const hasPhoneFields = Boolean(payload.phoneNumber || payload.otp);
+
+  if (hasEmailFields && hasPhoneFields) {
+    throw new AuthError(
+      "Provide either email/password or phoneNumber/otp, not both",
+      400,
+    );
+  }
+
+  if (hasEmailFields) {
+    return validateLoginInput({
+      email: payload.email ?? "",
+      password: payload.password ?? "",
+    });
+  }
+
+  if (hasPhoneFields) {
+    const normalized = validateOtpInput(payload.phoneNumber ?? "", payload.otp);
+    return { phoneNumber: normalized.number, otp: normalized.otp };
+  }
+
+  throw new AuthError("Login requires email/password or phoneNumber/otp", 400);
+}
+
 export function validateOtpInput(
   number: string,
   otp?: string,
@@ -160,4 +195,27 @@ export function validateOtpNumber(number: string): string {
   }
 
   return normalizedNumber;
+}
+
+export function validateOtpEmail(email: string): string {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail || !EMAIL_REGEX.test(normalizedEmail)) {
+    throw new AuthError("Invalid email format", 400);
+  }
+
+  return normalizedEmail;
+}
+
+export function validateEmailOtpInput(
+  email: string,
+  otp?: string,
+): { email: string; otp: string } {
+  const normalizedEmail = validateOtpEmail(email);
+
+  if (!otp || !/^\d{4}$/.test(otp)) {
+    throw new AuthError("Invalid otp. It must be exactly 4 digits", 400);
+  }
+
+  return { email: normalizedEmail, otp };
 }

@@ -3,9 +3,11 @@ import { env } from "../config/env";
 import { RefreshTokenModel } from "../models/RefreshToken";
 import { UserModel } from "../models/User";
 import {
+  createEmailOtpRecord,
   createOtpRecord,
   createUser,
   findRefreshToken,
+  findValidEmailOtp,
   findUserByEmail,
   findUserByPhone,
   findValidOtp,
@@ -19,14 +21,19 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 import {
+  type LoginRequestInput,
+  validateEmailOtpInput,
   type LoginInput,
   type RegisterInput,
+  validateLoginRequestInput,
+  validateOtpEmail,
   validateLoginInput,
   validateOtpInput,
   validateOtpNumber,
   validateRegisterInput,
 } from "../validation/user.validation";
 import { generateOtp } from "../utils/otp";
+import { sendOtpMail } from "../utils/mail";
 
 function resolveIp(rawIp?: string, fallback?: string): string {
   const candidate = rawIp?.trim() || fallback?.trim() || "0.0.0.0";
@@ -124,6 +131,29 @@ export async function loginWithEmail(payload: LoginInput) {
   return issueTokens(user._id.toString(), user.phoneNumber);
 }
 
+export async function loginUser(payload: Partial<LoginRequestInput>) {
+  const input = validateLoginRequestInput(payload);
+
+  if ("email" in input) {
+    return loginWithEmail(input);
+  }
+
+  const otpDoc = await findValidOtp(input.phoneNumber, input.otp);
+  if (!otpDoc) {
+    throw new AuthError("Invalid or expired OTP", 401);
+  }
+
+  const user = await findUserByPhone(input.phoneNumber);
+  if (!user) {
+    throw new AuthError("User not found for this phone number", 404);
+  }
+
+  otpDoc.consumedAt = new Date();
+  await otpDoc.save();
+
+  return issueTokens(user._id.toString(), user.phoneNumber);
+}
+
 export async function generateUserOtp(number: string) {
   const normalizedNumber = validateOtpNumber(number);
   const otp = generateOtp();
@@ -149,6 +179,33 @@ export async function validateUserOtp(number: string, otp?: string) {
   await otpDoc.save();
 
   return { number: input.number, valid: true };
+}
+
+export async function generateEmailOtp(email: string) {
+  const normalizedEmail = validateOtpEmail(email);
+  const otp = generateOtp();
+
+  await createEmailOtpRecord(normalizedEmail, otp);
+  await sendOtpMail(normalizedEmail, otp);
+
+  return {
+    email: normalizedEmail,
+    message: "OTP sent to email",
+  };
+}
+
+export async function validateEmailOtp(email: string, otp?: string) {
+  const input = validateEmailOtpInput(email, otp);
+  const otpDoc = await findValidEmailOtp(input.email, input.otp);
+
+  if (!otpDoc) {
+    throw new AuthError("Invalid or expired OTP", 401);
+  }
+
+  otpDoc.consumedAt = new Date();
+  await otpDoc.save();
+
+  return { email: input.email, valid: true };
 }
 
 export async function getUserProfile(userId: string) {

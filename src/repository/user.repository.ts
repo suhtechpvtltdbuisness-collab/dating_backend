@@ -61,6 +61,25 @@ export function findValidOtp(phoneNumber: string, otp: string) {
   }).sort({ createdAt: -1 });
 }
 
+export function createEmailOtpRecord(email: string, otp: string) {
+  return OtpCodeModel.create({
+    email,
+    purpose: "login",
+    codeHash: sha256(otp),
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+  });
+}
+
+export function findValidEmailOtp(email: string, otp: string) {
+  return OtpCodeModel.findOne({
+    email,
+    purpose: "login",
+    codeHash: sha256(otp),
+    consumedAt: { $exists: false },
+    expiresAt: { $gt: new Date() },
+  }).sort({ createdAt: -1 });
+}
+
 export function findRefreshToken(refreshToken: string) {
   return RefreshTokenModel.findOne({
     tokenHash: sha256(refreshToken),

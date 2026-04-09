@@ -44,6 +44,11 @@ npm run dev
 - `REFRESH_TOKEN_TTL`: e.g. `30d`
 - `OTP_TTL_MINUTES`: OTP validity duration
 - `CLIENT_ORIGIN`: allowed CORS origin
+- `SMTP_HOST`: SMTP host for email OTP
+- `SMTP_PORT`: SMTP port, usually `587`
+- `SMTP_USER`: SMTP username
+- `SMTP_PASS`: SMTP password
+- `SMTP_FROM`: sender display/address used for OTP emails
 
 ## Users Module Endpoints
 
@@ -92,7 +97,7 @@ This generates OTP and prints it in server console for now.
 }
 ```
 
-### 4) Login (email + password)
+### 4) Login (email + password or phone + OTP)
 
 `POST /users/login`
 
@@ -100,6 +105,13 @@ This generates OTP and prints it in server console for now.
 {
   "email": "alex@example.com",
   "password": "secret123"
+}
+```
+
+```json
+{
+  "phoneNumber": "+919999999999",
+  "otp": "1234"
 }
 ```
 

@@ -1,11 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import {
+  generateEmailOtp,
   generateUserOtp,
   getSuggestion,
   getUserProfile,
-  loginWithEmail,
+  loginUser,
   refreshUserToken,
   registerWithEmail,
+  validateEmailOtp,
   validateUserOtp,
 } from "../services/user.service";
 
@@ -28,7 +30,7 @@ export async function loginUserHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await loginWithEmail(req.body);
+    const result = await loginUser(req.body);
     res.status(200).json({ message: "Login successful", data: result });
   } catch (error) {
     next(error);
@@ -59,6 +61,36 @@ export async function validateOtpHandler(
   try {
     const { number, otp } = req.body as { number?: string; otp?: string };
     const result = await validateUserOtp(number ?? "", otp);
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function generateEmailOtpHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const email = Array.isArray(req.params.email)
+      ? req.params.email[0]
+      : req.params.email;
+    const result = await generateEmailOtp(email ?? "");
+    res.status(200).json({ data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function validateEmailOtpHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { email, otp } = req.body as { email?: string; otp?: string };
+    const result = await validateEmailOtp(email ?? "", otp);
     res.status(200).json({ data: result });
   } catch (error) {
     next(error);
