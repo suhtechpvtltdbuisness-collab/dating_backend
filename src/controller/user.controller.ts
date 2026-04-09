@@ -1,8 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   generateUserOtp,
+  getSuggestion,
   getUserProfile,
   loginWithEmail,
+  refreshUserToken,
   registerWithEmail,
   validateUserOtp,
 } from "../services/user.service";
@@ -76,6 +78,38 @@ export async function getMeHandler(
 
     const user = await getUserProfile(userId);
     res.status(200).json({ data: user });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getSuggestionsHandler(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = res.locals.user?.sub as string | undefined;
+    if (!userId) {
+      throw new Error("Missing authenticated user context");
+    }
+
+    const suggestedUser = await getSuggestion(userId);
+    res.status(200).json({ data: suggestedUser });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function refreshTokenHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { refreshToken } = req.body as { refreshToken?: string };
+    const tokens = await refreshUserToken(refreshToken ?? "");
+    res.status(200).json({ message: "Token refreshed", data: tokens });
   } catch (error) {
     next(error);
   }

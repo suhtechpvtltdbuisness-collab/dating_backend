@@ -5,13 +5,19 @@ import { UserModel } from "../models/User";
 import {
   createOtpRecord,
   createUser,
+  findRefreshToken,
   findUserByEmail,
   findUserByPhone,
   findValidOtp,
+  getSuggestedUser,
 } from "../repository/user.repository";
 import { AuthError } from "../errors/AuthError";
 import { sha256 } from "../utils/hash";
-import { signAccessToken, signRefreshToken } from "../utils/jwt";
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../utils/jwt";
 import {
   type LoginInput,
   type RegisterInput,
@@ -152,4 +158,38 @@ export async function getUserProfile(userId: string) {
   }
 
   return user;
+}
+
+export async function getSuggestion(userId: string) {
+  const currentUser = await getUserProfile(userId);
+  const suggestedUser = await getSuggestedUser(userId, currentUser.gender);
+
+  if (!suggestedUser) {
+    throw new AuthError("No suggestions available at this time", 404);
+  }
+
+  return suggestedUser;
+}
+
+export async function refreshUserToken(refreshToken: string) {
+  if (!refreshToken) {
+    throw new AuthError("Refresh token is required", 400);
+  }
+
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+    const tokenRecord = await findRefreshToken(refreshToken);
+
+    if (!tokenRecord) {
+      throw new AuthError("Invalid or expired refresh token", 401);
+    }
+
+    const newTokens = await issueTokens(payload.sub, payload.phoneNumber);
+    return newTokens;
+  } catch (error) {
+    if (error instanceof AuthError) {
+      throw error;
+    }
+    throw new AuthError("Invalid refresh token", 401);
+  }
 }

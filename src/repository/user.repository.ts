@@ -28,6 +28,16 @@ export function findUserByPhone(phoneNumber: string) {
   return UserModel.findOne({ phoneNumber });
 }
 
+export function getSuggestedUser(userId: string, userGender: string) {
+  return UserModel.findOne({
+    _id: { $ne: userId },
+    interestedIn: userGender,
+    active: true,
+  })
+    .limit(1)
+    .lean();
+}
+
 export function createUser(input: CreateUserInput) {
   return UserModel.create(input);
 }
@@ -49,6 +59,14 @@ export function findValidOtp(phoneNumber: string, otp: string) {
     consumedAt: { $exists: false },
     expiresAt: { $gt: new Date() },
   }).sort({ createdAt: -1 });
+}
+
+export function findRefreshToken(refreshToken: string) {
+  return RefreshTokenModel.findOne({
+    tokenHash: sha256(refreshToken),
+    revokedAt: { $exists: false },
+    expiresAt: { $gt: new Date() },
+  });
 }
 
 export function revokeRefreshToken(refreshToken: string) {
