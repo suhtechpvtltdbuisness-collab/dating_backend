@@ -7,6 +7,11 @@ import morgan from "morgan";
 import { connectDatabase } from "./config/db";
 import { env } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import chatHistoryRouter from "./routes/chat-history.routes";
+import chatUsersRouter from "./routes/chat-users.routes";
+import chatRouter from "./routes/chat.routes";
+import notificationRouter from "./routes/notification.routes";
+import profileRouter from "./routes/profile.routes";
 import userRouter from "./routes/user.routes";
 
 const app = express();
@@ -82,6 +87,24 @@ app.use("/users", async (_req, _res, next) => {
   }
 });
 app.use("/users", userRouter);
+
+app.use(
+  ["/chats", "/profile", "/notifications", "/chat-users", "/chat-history"],
+  async (_req, _res, next) => {
+    try {
+      await ensureDbConnection();
+      next();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.use("/chats", chatRouter);
+app.use("/profile", profileRouter);
+app.use("/notifications", notificationRouter);
+app.use("/chat-users", chatUsersRouter);
+app.use("/chat-history", chatHistoryRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
