@@ -12,6 +12,7 @@ import chatUsersRouter from "./routes/chat-users.routes";
 import chatRouter from "./routes/chat.routes";
 import notificationRouter from "./routes/notification.routes";
 import profileRouter from "./routes/profile.routes";
+import swipeRouter from "./routes/swipe.routes";
 import userRouter from "./routes/user.routes";
 
 const app = express();
@@ -89,7 +90,14 @@ app.use("/users", async (_req, _res, next) => {
 app.use("/users", userRouter);
 
 app.use(
-  ["/chats", "/profile", "/notifications", "/chat-users", "/chat-history"],
+  [
+    "/chats",
+    "/profile",
+    "/notifications",
+    "/chat-users",
+    "/chat-history",
+    "/swipes",
+  ],
   async (_req, _res, next) => {
     try {
       await ensureDbConnection();
@@ -105,6 +113,7 @@ app.use("/profile", profileRouter);
 app.use("/notifications", notificationRouter);
 app.use("/chat-users", chatUsersRouter);
 app.use("/chat-history", chatHistoryRouter);
+app.use("/swipes", swipeRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
