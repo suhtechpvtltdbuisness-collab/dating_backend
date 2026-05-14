@@ -2,6 +2,7 @@ import { OtpCodeModel } from "../models/OtpCode";
 import { RefreshTokenModel } from "../models/RefreshToken";
 import { UserModel } from "../models/User";
 import { sha256 } from "../utils/hash";
+import { Types } from "mongoose";
 
 export interface CreateUserInput {
   phoneNumber: string;
@@ -28,10 +29,27 @@ export function findUserByPhone(phoneNumber: string) {
   return UserModel.findOne({ phoneNumber });
 }
 
-export function getSuggestedUser(userId: string, userGender: string) {
+const FEMALE_LABELS = ["female", "women", "woman", "f", "girl"];
+const MALE_LABELS = ["male", "men", "man", "m", "boy"];
+
+function labelsForGender(value: string): string[] {
+  const v = value.trim().toLowerCase();
+  if (FEMALE_LABELS.includes(v)) return FEMALE_LABELS;
+  if (MALE_LABELS.includes(v)) return MALE_LABELS;
+  return [v];
+}
+
+export function getSuggestedUser(
+  userId: string,
+  userGender: string,
+  userInterestedIn: string,
+) {
+  const candidateGenders = labelsForGender(userInterestedIn);
+  const candidateInterestedIn = labelsForGender(userGender);
   return UserModel.findOne({
-    _id: { $ne: userId },
-    interestedIn: userGender,
+    _id: { $ne: new Types.ObjectId(userId) },
+    gender: { $in: candidateGenders },
+    interestedIn: { $in: candidateInterestedIn },
     active: true,
   })
     .limit(1)

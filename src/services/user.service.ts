@@ -219,7 +219,11 @@ export async function getUserProfile(userId: string) {
 
 export async function getSuggestion(userId: string) {
   const currentUser = await getUserProfile(userId);
-  const suggestedUser = await getSuggestedUser(userId, currentUser.gender);
+  const suggestedUser = await getSuggestedUser(
+    userId,
+    currentUser.gender,
+    currentUser.interestedIn,
+  );
 
   if (!suggestedUser) {
     throw new AuthError("No suggestions available at this time", 404);
