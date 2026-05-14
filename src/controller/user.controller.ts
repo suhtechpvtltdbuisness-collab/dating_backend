@@ -116,7 +116,7 @@ export async function getMeHandler(
 }
 
 export async function getSuggestionsHandler(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
@@ -126,8 +126,14 @@ export async function getSuggestionsHandler(
       throw new Error("Missing authenticated user context");
     }
 
-    const suggestedUser = await getSuggestion(userId);
-    res.status(200).json({ data: suggestedUser });
+    const rawLimit = req.query.limit;
+    const limit =
+      typeof rawLimit === "string" ? Number.parseInt(rawLimit, 10) : undefined;
+    const suggestedUsers = await getSuggestion(
+      userId,
+      Number.isFinite(limit) ? limit : undefined,
+    );
+    res.status(200).json({ data: suggestedUsers });
   } catch (error) {
     next(error);
   }

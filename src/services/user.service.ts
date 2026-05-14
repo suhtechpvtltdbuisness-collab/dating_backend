@@ -11,7 +11,7 @@ import {
   findUserByEmail,
   findUserByPhone,
   findValidOtp,
-  getSuggestedUser,
+  getSuggestedUsers,
 } from "../repository/user.repository";
 import { AuthError } from "../errors/AuthError";
 import { sha256 } from "../utils/hash";
@@ -217,19 +217,20 @@ export async function getUserProfile(userId: string) {
   return user;
 }
 
-export async function getSuggestion(userId: string) {
+export async function getSuggestion(userId: string, limit?: number) {
   const currentUser = await getUserProfile(userId);
-  const suggestedUser = await getSuggestedUser(
+  const suggestedUsers = await getSuggestedUsers(
     userId,
     currentUser.gender,
     currentUser.interestedIn,
+    limit,
   );
 
-  if (!suggestedUser) {
+  if (!suggestedUsers.length) {
     throw new AuthError("No suggestions available at this time", 404);
   }
 
-  return suggestedUser;
+  return suggestedUsers;
 }
 
 export async function refreshUserToken(refreshToken: string) {

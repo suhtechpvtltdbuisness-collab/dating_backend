@@ -39,20 +39,24 @@ function labelsForGender(value: string): string[] {
   return [v];
 }
 
-export function getSuggestedUser(
+const DEFAULT_SUGGESTIONS_LIMIT = 30;
+
+export function getSuggestedUsers(
   userId: string,
   userGender: string,
   userInterestedIn: string,
+  limit = DEFAULT_SUGGESTIONS_LIMIT,
 ) {
   const candidateGenders = labelsForGender(userInterestedIn);
   const candidateInterestedIn = labelsForGender(userGender);
-  return UserModel.findOne({
+  const cap = Math.min(Math.max(1, limit), 100);
+  return UserModel.find({
     _id: { $ne: new Types.ObjectId(userId) },
     gender: { $in: candidateGenders },
     interestedIn: { $in: candidateInterestedIn },
     active: true,
   })
-    .limit(1)
+    .limit(cap)
     .lean();
 }
 
