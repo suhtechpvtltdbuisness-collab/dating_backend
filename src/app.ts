@@ -7,11 +7,15 @@ import morgan from "morgan";
 import { connectDatabase } from "./config/db";
 import { env } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import authRouter from "./routes/auth.routes";
 import chatHistoryRouter from "./routes/chat-history.routes";
 import chatUsersRouter from "./routes/chat-users.routes";
 import chatRouter from "./routes/chat.routes";
+import matchRouter from "./routes/match.routes";
+import mediaRouter from "./routes/media.routes";
 import notificationRouter from "./routes/notification.routes";
 import profileRouter from "./routes/profile.routes";
+import profilesRouter from "./routes/profiles.routes";
 import swipeRouter from "./routes/swipe.routes";
 import userRouter from "./routes/user.routes";
 
@@ -79,20 +83,15 @@ app.get("/health", async (_req, res) => {
   res.status(isHealthy ? 200 : 503).json(payload);
 });
 
-app.use("/users", async (_req, _res, next) => {
-  try {
-    await ensureDbConnection();
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-app.use("/users", userRouter);
-
 app.use(
   [
+    "/auth",
+    "/users",
     "/chats",
     "/profile",
+    "/profiles",
+    "/matches",
+    "/media",
     "/notifications",
     "/chat-users",
     "/chat-history",
@@ -108,8 +107,13 @@ app.use(
   },
 );
 
+app.use("/auth", authRouter);
+app.use("/users", userRouter);
 app.use("/chats", chatRouter);
 app.use("/profile", profileRouter);
+app.use("/profiles", profilesRouter);
+app.use("/matches", matchRouter);
+app.use("/media", mediaRouter);
 app.use("/notifications", notificationRouter);
 app.use("/chat-users", chatUsersRouter);
 app.use("/chat-history", chatHistoryRouter);

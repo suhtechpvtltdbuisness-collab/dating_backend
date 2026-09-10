@@ -1,15 +1,20 @@
 import type { NextFunction, Request, Response } from "express";
 import {
+  changePassword,
   generateEmailOtp,
   generateUserOtp,
-  getSuggestion,
   getUserProfile,
   loginUser,
+  logoutUser,
   refreshUserToken,
   registerWithEmail,
+  requestPasswordReset,
+  resetPassword,
   validateEmailOtp,
   validateUserOtp,
 } from "../services/user.service";
+import { listProfiles } from "../services/discovery.service";
+import { numericQuery, optionalUserId, requireUserId } from "../utils/context";
 
 export async function registerUserHandler(
   req: Request,
@@ -103,12 +108,7 @@ export async function getMeHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = res.locals.user?.sub as string | undefined;
-    if (!userId) {
-      throw new Error("Missing authenticated user context");
-    }
-
-    const user = await getUserProfile(userId);
+    const user = await getUserProfile(requireUserId(res));
     res.status(200).json({ data: user });
   } catch (error) {
     next(error);
@@ -121,18 +121,10 @@ export async function getSuggestionsHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = res.locals.user?.sub as string | undefined;
-    if (!userId) {
-      throw new Error("Missing authenticated user context");
-    }
-
-    const rawLimit = req.query.limit;
-    const limit =
-      typeof rawLimit === "string" ? Number.parseInt(rawLimit, 10) : undefined;
-    const suggestedUsers = await getSuggestion(
-      userId,
-      Number.isFinite(limit) ? limit : undefined,
-    );
+    const suggestedUsers = await listProfiles(requireUserId(res), {
+      page: numericQuery(req, "page"),
+      limit: numericQuery(req, "limit"),
+    });
     res.status(200).json({ data: suggestedUsers });
   } catch (error) {
     next(error);
@@ -148,6 +140,79 @@ export async function refreshTokenHandler(
     const { refreshToken } = req.body as { refreshToken?: string };
     const tokens = await refreshUserToken(refreshToken ?? "");
     res.status(200).json({ message: "Token refreshed", data: tokens });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logoutHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { refreshToken } = (req.body ?? {}) as { refreshToken?: string };
+    const result = await logoutUser(refreshToken, optionalUserId(res));
+    res.status(200).json({ message: "Logged out", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function forgotPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { email } = req.body as { email?: string };
+    const result = await requestPasswordReset(email ?? "");
+    res.status(200).json({ message: result.message, data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { email, otp, newPassword, password } = req.body as {
+      email?: string;
+      otp?: string;
+      newPassword?: string;
+      password?: string;
+    };
+    const result = await resetPassword(
+      email ?? "",
+      otp,
+      newPassword ?? password ?? "",
+    );
+    res.status(200).json({ message: "Password updated", data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function changePasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = requireUserId(res);
+    const { currentPassword, newPassword } = req.body as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+    const result = await changePassword(
+      userId,
+      currentPassword ?? "",
+      newPassword ?? "",
+    );
+    res.status(200).json({ message: "Password changed", data: result });
   } catch (error) {
     next(error);
   }

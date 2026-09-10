@@ -11,8 +11,9 @@ import {
   findUserByEmail,
   findUserByPhone,
   findValidOtp,
-  getSuggestedUsers,
+  revokeRefreshToken,
 } from "../repository/user.repository";
+import { presentUser } from "../presenters";
 import { AuthError } from "../errors/AuthError";
 import { sha256 } from "../utils/hash";
 import {
@@ -111,6 +112,7 @@ export async function registerWithEmail(
 
   return {
     userId: user._id.toString(),
+    email: user.email,
     ...tokens,
   };
 }
@@ -128,7 +130,8 @@ export async function loginWithEmail(payload: LoginInput) {
     throw new AuthError("Invalid credentials", 401);
   }
 
-  return issueTokens(user._id.toString(), user.phoneNumber);
+  const tokens = await issueTokens(user._id.toString(), user.phoneNumber);
+  return { userId: user._id.toString(), email: user.email, ...tokens };
 }
 
 export async function loginUser(payload: Partial<LoginRequestInput>) {
@@ -151,7 +154,8 @@ export async function loginUser(payload: Partial<LoginRequestInput>) {
   otpDoc.consumedAt = new Date();
   await otpDoc.save();
 
-  return issueTokens(user._id.toString(), user.phoneNumber);
+  const tokens = await issueTokens(user._id.toString(), user.phoneNumber);
+  return { userId: user._id.toString(), email: user.email, ...tokens };
 }
 
 export async function generateUserOtp(number: string) {
@@ -214,23 +218,7 @@ export async function getUserProfile(userId: string) {
     throw new AuthError("User not found", 404);
   }
 
-  return user;
-}
-
-export async function getSuggestion(userId: string, limit?: number) {
-  const currentUser = await getUserProfile(userId);
-  const suggestedUsers = await getSuggestedUsers(
-    userId,
-    currentUser.gender,
-    currentUser.interestedIn,
-    limit,
-  );
-
-  if (!suggestedUsers.length) {
-    throw new AuthError("No suggestions available at this time", 404);
-  }
-
-  return suggestedUsers;
+  return presentUser(user);
 }
 
 export async function refreshUserToken(refreshToken: string) {
@@ -253,5 +241,93 @@ export async function refreshUserToken(refreshToken: string) {
       throw error;
     }
     throw new AuthError("Invalid refresh token", 401);
+  }
+}
+
+export async function logoutUser(refreshToken?: string, userId?: string) {
+  if (refreshToken) {
+    await revokeRefreshToken(refreshToken);
+  } else if (userId) {
+    await RefreshTokenModel.updateMany(
+      { userId, revokedAt: { $exists: false } },
+      { revokedAt: new Date() },
+    );
+  }
+
+  return { loggedOut: true };
+}
+
+export async function requestPasswordReset(email: string) {
+  const normalizedEmail = validateOtpEmail(email);
+  const user = await findUserByEmail(normalizedEmail);
+
+  // Do not leak account existence — always report success.
+  if (user) {
+    const otp = generateOtp();
+    await createEmailOtpRecord(normalizedEmail, otp);
+    await sendOtpMail(normalizedEmail, otp);
+  }
+
+  return { email: normalizedEmail, message: "Password reset OTP sent" };
+}
+
+export async function resetPassword(
+  email: string,
+  otp: string | undefined,
+  newPassword: string,
+) {
+  const input = validateEmailOtpInput(email, otp);
+  assertStrongPassword(newPassword);
+
+  const otpDoc = await findValidEmailOtp(input.email, input.otp);
+  if (!otpDoc) {
+    throw new AuthError("Invalid or expired OTP", 401);
+  }
+
+  const user = await findUserByEmail(input.email);
+  if (!user) {
+    throw new AuthError("User not found", 404);
+  }
+
+  otpDoc.consumedAt = new Date();
+  await otpDoc.save();
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  await RefreshTokenModel.updateMany(
+    { userId: user._id, revokedAt: { $exists: false } },
+    { revokedAt: new Date() },
+  );
+
+  return { email: input.email, updated: true };
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  assertStrongPassword(newPassword);
+
+  const user = await UserModel.findById(userId).select("+password");
+  if (!user?.password) {
+    throw new AuthError("User not found", 404);
+  }
+
+  const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isPasswordMatch) {
+    throw new AuthError("Current password is incorrect", 401);
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  return { updated: true };
+}
+
+function assertStrongPassword(password: string): void {
+  if (!password || password.length < 6) {
+    throw new AuthError("Password must be at least 6 characters", 400);
   }
 }

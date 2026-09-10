@@ -1,18 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   getDislikes,
+  getIncomingLikes,
   getLikes,
   getMatches,
   swipeUser,
 } from "../services/swipe.service";
-
-function getAuthenticatedUserId(res: Response): string {
-  const userId = res.locals.user?.sub as string | undefined;
-  if (!userId) {
-    throw new Error("Missing authenticated user context");
-  }
-  return userId;
-}
+import { param, requireUserId } from "../utils/context";
 
 export async function rightSwipeHandler(
   req: Request,
@@ -20,17 +14,12 @@ export async function rightSwipeHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = getAuthenticatedUserId(res);
-    const targetUserId = Array.isArray(req.params.userId)
-      ? req.params.userId[0]
-      : req.params.userId;
-    const result = await swipeUser(userId, targetUserId ?? "", "like");
-    res
-      .status(200)
-      .json({
-        message: result.match ? "Match created" : "Liked",
-        data: result,
-      });
+    const userId = requireUserId(res);
+    const result = await swipeUser(userId, param(req, "userId"), "like");
+    res.status(200).json({
+      message: result.isMatch ? "Match created" : "Liked",
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -42,11 +31,8 @@ export async function leftSwipeHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = getAuthenticatedUserId(res);
-    const targetUserId = Array.isArray(req.params.userId)
-      ? req.params.userId[0]
-      : req.params.userId;
-    const result = await swipeUser(userId, targetUserId ?? "", "dislike");
+    const userId = requireUserId(res);
+    const result = await swipeUser(userId, param(req, "userId"), "dislike");
     res.status(200).json({ message: "Disliked", data: result });
   } catch (error) {
     next(error);
@@ -59,8 +45,7 @@ export async function getMatchesHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = getAuthenticatedUserId(res);
-    const data = await getMatches(userId);
+    const data = await getMatches(requireUserId(res));
     res.status(200).json({ data });
   } catch (error) {
     next(error);
@@ -73,8 +58,7 @@ export async function getLikesHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = getAuthenticatedUserId(res);
-    const data = await getLikes(userId);
+    const data = await getLikes(requireUserId(res));
     res.status(200).json({ data });
   } catch (error) {
     next(error);
@@ -87,8 +71,20 @@ export async function getDislikesHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const userId = getAuthenticatedUserId(res);
-    const data = await getDislikes(userId);
+    const data = await getDislikes(requireUserId(res));
+    res.status(200).json({ data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getIncomingLikesHandler(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const data = await getIncomingLikes(requireUserId(res));
     res.status(200).json({ data });
   } catch (error) {
     next(error);

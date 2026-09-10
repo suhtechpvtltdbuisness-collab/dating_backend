@@ -123,6 +123,78 @@ Headers:
 
 `Authorization: Bearer <access_token>`
 
+## Response Envelope
+
+Every JSON route responds as `{ "message": "...", "data": { ... } }`. The
+Flutter client unwraps `data` before parsing, so list endpoints that the client
+reads as objects return a keyed collection (`{ "chats": [...] }`) rather than a
+bare array.
+
+## Auth
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/auth/refresh-token` | `{ refreshToken }`; also aliased at `/users/refresh` |
+| POST | `/auth/logout` | Revokes the supplied refresh token |
+| POST | `/auth/forgot-password` | `{ email }`; emails a reset OTP |
+| POST | `/auth/reset-password` | `{ email, otp, newPassword }` |
+| POST | `/auth/change-password` | Authenticated; `{ currentPassword, newPassword }` |
+
+`/auth/register` and `/auth/login` mirror the `/users` equivalents. Every
+`/users/*` counterpart of the above also exists.
+
+## User & Account
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET / PUT | `/profile` | Current user; `PUT` accepts `firstName`/`lastName` and maps them to `name` |
+| GET / PUT / DELETE | `/users/:id` | Writes and deletes are self-only (403 otherwise) |
+| POST | `/users/upload-photo` | Multipart; field name `file`, `files`, `photo`, `photos`, or `media` |
+| DELETE | `/users/delete-photo/:photoId` | |
+| GET / PUT | `/users/preferences` | Age range, distance, `lookingFor`, `preferredGenders` |
+| POST | `/users/:id/block` | `{ blockedUserId }` |
+| DELETE | `/users/:id/unblock/:blockedUserId` | |
+| GET | `/users/blocked` | |
+| GET | `/media/:mediaId` | Serves an uploaded image; public |
+
+Uploads are stored in the `media` collection and returned as absolute URLs, so
+no object storage is required. Swap `media.service.ts` for S3/Cloudinary when
+image volume justifies it.
+
+## Discovery, Swipes & Matches
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/profiles` | Excludes already-swiped and blocked users; honours saved preferences |
+| GET | `/profiles/nearby` | Geo query against the user's stored point; `?distance=` in km |
+| GET | `/profiles/:id` | |
+| POST | `/profiles/like` \| `/super-like` \| `/pass` \| `/unlike` | `{ userId }` aliases over the swipe endpoints |
+| GET | `/users/suggestions` | Same result set as `/profiles` |
+| POST | `/swipes/right/:userId`, `/swipes/left/:userId` | Returns `{ isMatch, match }` |
+| GET | `/swipes/matches`, `/swipes/likes`, `/swipes/dislikes` | |
+| GET | `/swipes/liked-you` | Users who liked you and have not been swiped back |
+| GET | `/matches`, `/matches/top`, `/matches/:id` | |
+| POST | `/matches/:id/accept`, `/matches/:id/reject` | |
+| DELETE | `/matches/:id/unmatch` | |
+
+## Chat
+
+Conversations live in their own collection; each `Chat` document is one message
+belonging to a `conversationId`.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/chats` | `{ chats: [...] }` with per-user unread counts |
+| POST | `/chats` | `{ recipientId, message? }`; idempotent per participant pair |
+| GET / PUT / DELETE | `/chats/:chatId` | `DELETE` is a soft delete for the caller only |
+| GET / POST | `/chats/:chatId/messages` | |
+| DELETE | `/chats/:chatId/messages/:messageId` | Sender only |
+| POST | `/chats/:chatId/read` | Clears the caller's unread count |
+| POST | `/chats/:chatId/upload` | Multipart; returns `{ mediaUrl }` |
+| POST | `/chats/:chatId/typing` | |
+| POST | `/chats/messages/report` | `{ messageId, reason, details? }` |
+| GET | `/chats/recipient/:recipientId`, `/chat-history/:userId`, `/chat-users` | |
+
 ## Notes
 
 - Replace OTP response with real SMS gateway integration (Twilio/Fast2SMS/etc.) in production.

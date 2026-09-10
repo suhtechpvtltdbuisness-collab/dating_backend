@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
+import mongoose from "mongoose";
+import { MulterError } from "multer";
 import { AuthError } from "../errors/AuthError";
 
 export function notFoundHandler(req: Request, res: Response): void {
@@ -15,6 +17,21 @@ export function errorHandler(
 ): void {
   if (error instanceof AuthError) {
     res.status(error.status).json({ message: error.message });
+    return;
+  }
+
+  if (error instanceof MulterError) {
+    res.status(400).json({ message: error.message });
+    return;
+  }
+
+  if (error instanceof mongoose.Error.ValidationError) {
+    res.status(400).json({ message: error.message });
+    return;
+  }
+
+  if (error instanceof mongoose.Error.CastError) {
+    res.status(400).json({ message: `Invalid ${error.path}` });
     return;
   }
 

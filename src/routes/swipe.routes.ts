@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticateAccessToken } from "../middlewares/authenticate";
 import {
   getDislikesHandler,
+  getIncomingLikesHandler,
   getLikesHandler,
   getMatchesHandler,
   leftSwipeHandler,
@@ -17,5 +18,6 @@ swipeRouter.post("/left/:userId", leftSwipeHandler);
 swipeRouter.get("/matches", getMatchesHandler);
 swipeRouter.get("/likes", getLikesHandler);
 swipeRouter.get("/dislikes", getDislikesHandler);
+swipeRouter.get("/liked-you", getIncomingLikesHandler);
 
 export default swipeRouter;

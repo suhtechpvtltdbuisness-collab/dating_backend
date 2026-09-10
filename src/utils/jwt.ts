@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
 
@@ -21,8 +22,14 @@ export function signAccessToken(payload: TokenPayload): string {
   return signToken(payload, env.accessSecret, env.accessTtl);
 }
 
+/// `jti` keeps two refresh tokens issued in the same second distinct, so the
+/// unique index on the stored token hash cannot collide.
 export function signRefreshToken(payload: TokenPayload): string {
-  return signToken(payload, env.refreshSecret, env.refreshTtl);
+  const options: SignOptions = {
+    expiresIn: env.refreshTtl as SignOptions["expiresIn"],
+    jwtid: crypto.randomUUID(),
+  };
+  return jwt.sign(payload, env.refreshSecret, options);
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {

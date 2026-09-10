@@ -1,5 +1,6 @@
 import { AuthError } from "../errors/AuthError";
 import { UserModel } from "../models/User";
+import { presentUser } from "../presenters";
 import {
   type UpdateProfileInput,
   validateUpdateProfileInput,
@@ -11,7 +12,7 @@ export async function getProfile(userId: string) {
     throw new AuthError("User not found", 404);
   }
 
-  return profile;
+  return presentUser(profile);
 }
 
 export async function updateProfile(
@@ -22,11 +23,12 @@ export async function updateProfile(
 
   const profile = await UserModel.findByIdAndUpdate(userId, updates, {
     new: true,
+    runValidators: true,
   }).lean();
 
   if (!profile) {
     throw new AuthError("User not found", 404);
   }
 
-  return profile;
+  return presentUser(profile);
 }

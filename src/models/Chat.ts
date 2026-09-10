@@ -14,7 +14,14 @@ const chatSchema = new Schema(
       required: true,
       index: true,
     },
+    conversationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Conversation",
+      index: true,
+    },
     message: { type: String, required: true, trim: true, maxlength: 2000 },
+    attachmentUrl: { type: String },
+    attachmentType: { type: String, enum: ["image", "video", "document"] },
     editedAt: { type: Date },
     deletedAt: { type: Date },
     readAt: { type: Date },
@@ -23,6 +30,7 @@ const chatSchema = new Schema(
 );
 
 chatSchema.index({ senderId: 1, recipientId: 1, createdAt: -1 });
+chatSchema.index({ conversationId: 1, createdAt: -1 });
 
 export type ChatDocument = InferSchemaType<typeof chatSchema> & {
   _id: Types.ObjectId;
